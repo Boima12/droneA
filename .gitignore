@@ -1,0 +1,18 @@
+# MATLAB / Simulink build artifacts and caches
+slprj/
+sccprj/
+
+*.slxc
+*.fig
+*.png
+
+*.autosave
+*.asv
+*.m~
+*.mex*
+*.mlx.autosave
+*_autosave.*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
