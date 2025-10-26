@@ -1,3 +1,5 @@
+```bên dưới là phân tích của copilot```
+
 # droneA — Simple 3-DOF Quadcopter (Simulink)
 
 This project contains a minimal Simulink model and MATLAB driver script to simulate a 3-DOF drone trajectory and visualize the results.
