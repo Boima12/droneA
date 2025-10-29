@@ -1,18 +1,21 @@
-classdef BatteryModel
-    % BatteryModel - Simple Li-ion battery simulation for drone
-    % This model provides a basic voltage drop and SOC (state-of-charge) simulation.
+classdef BatteryModel < handle
+    % BatteryModel - Li-ion battery model for drone simulation
+    % Works both in MATLAB scripts and Simulink (via MATLAB Function block).
+    % Simulates voltage and SOC given current draw.
     
     properties
-        Capacity_Ah = 2.2;      % Battery capacity (Ah)
-        NominalVoltage = 11.1;  % Nominal voltage (V)
-        InternalResistance = 0.05; % Ohm
-        SOC = 1.0;              % Initial State of Charge (1 = 100%)
-        dt = 0.01;              % Time step
+        Capacity_Ah = 2.2;          % Battery capacity (Ah)
+        NominalVoltage = 11.1;      % Nominal voltage (V)
+        InternalResistance = 0.05;  % Internal resistance (Ohm)
+        SOC = 1.0;                  % State of charge
+        dt = 0.01;                  % Simulation time step (s)  
+        lastTime = 0;
     end
+
     
     methods
         function obj = BatteryModel(varargin)
-            % Allow passing in parameters
+            % Allow name-value initialization
             if nargin > 0
                 for i = 1:2:length(varargin)
                     if isprop(obj, varargin{i})
@@ -21,15 +24,24 @@ classdef BatteryModel
                 end
             end
         end
+
+        % === Step update (for Simulink) ===
+        function [voltage, soc] = step(obj, current)
+            % One simulation step (used inside MATLAB Function block)
+            dQ = (current * obj.dt) / (obj.Capacity_Ah * 3600);
+            obj.SOC = max(obj.SOC - dQ, 0);
+            voltage = obj.NominalVoltage ...
+                      - current * obj.InternalResistance ...
+                      - (1 - obj.SOC) * 0.8;  % sag when low battery
+            soc = obj.SOC;
+        end
         
+        % === Full offline simulation (for MATLAB) ===
         function [t, voltage, soc] = simulate(obj, T, currentProfile)
-            % Simulate battery discharge under current profile
-            % Inputs:
-            %   T - total simulation time (s)
-            %   currentProfile - current draw (A), can be scalar or vector
-            
+            % Simulate discharge for duration T with given current profile
             t = 0:obj.dt:T;
             n = length(t);
+            
             if isscalar(currentProfile)
                 I = currentProfile * ones(1, n);
             elseif length(currentProfile) == n
@@ -43,23 +55,23 @@ classdef BatteryModel
             soc(1) = obj.SOC;
             
             for k = 2:n
-                dQ = (I(k-1) * obj.dt) / (obj.Capacity_Ah * 3600);
-                soc(k) = max(soc(k-1) - dQ, 0);
-                voltage(k) = obj.NominalVoltage - I(k-1)*obj.InternalResistance ...
-                    - (1 - soc(k)) * 0.8; % 0.8V sag when near empty
+                [voltage(k), soc(k)] = obj.step(I(k-1));
             end
         end
         
+        % === Plot results ===
         function plotResults(~, t, voltage, soc)
-            figure('Name','Battery Simulation');
-            subplot(2,1,1);
-            plot(t, voltage, 'LineWidth', 1.5); grid on;
-            ylabel('Voltage (V)');
+            figure('Name','🔋 Battery Simulation','Color','w');
+            tiledlayout(2,1);
+
+            nexttile;
+            plot(t, voltage, 'b', 'LineWidth', 1.6);
+            grid on; ylabel('Voltage (V)');
             title('Battery Voltage vs Time');
-            
-            subplot(2,1,2);
-            plot(t, soc*100, 'LineWidth', 1.5);
-            grid on; ylabel('State of Charge (%)'); xlabel('Time (s)');
+
+            nexttile;
+            plot(t, soc*100, 'r', 'LineWidth', 1.6);
+            grid on; xlabel('Time (s)'); ylabel('State of Charge (%)');
         end
     end
 end
